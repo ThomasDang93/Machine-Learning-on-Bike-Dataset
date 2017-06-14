@@ -1,0 +1,67 @@
+---
+title: "bike"
+author: "Thomas Dang"
+date: "April 8, 2017"
+output: pdf_document
+---
+
+First we perform a general linear regression and locate which predictors are good for our response variable 'cnt'.
+
+Once we find these predictors, we can then move them to a different dataset known as small_bike.
+```{r}
+#==================================================#
+#===THIS SECTION OUTLINES THE BIKE DATASET OUTPUT==#
+#==================================================#
+library(readr)
+bike <- read_csv("hour.csv")
+head(bike)
+names(bike)
+model1 <- lm(cnt ~., data=bike)
+summary(model1)
+small_bike = bike[c(3,6,9,10,11,17)]  
+names(small_bike)
+```
+
+Here we perform linear regression on the training set. The accuracy is only 56%.
+```{r}
+#===LINEAR REGRESSION===
+set.seed(1234)
+i <- sample(2, nrow(small_bike), replace=TRUE, prob=c(0.8, 0.2))
+bike.train <- small_bike[i==1,]
+bike.test <- small_bike[i==2,]
+lm1 <- lm(bike.train$cnt~., data=bike.train)
+lm1.pred <- predict(lm1, newdata=bike.test)
+cor(lm1.pred, bike.test$cnt)
+```
+
+Next we perform knn regression on the training set. We get a big improvement of 90% on this model.
+```{r}
+#===KNN REGRESSION===
+library(caret)
+fit <- knnreg(bike.train[,1:5],bike.train$cnt,k=10)
+predictions <- predict(fit, bike.test[,1:5])
+cor(predictions, bike.test$cnt)
+```
+
+Finally we make a decision tree on the dataset. We get the summary and tree model as our outputs. We also see that the square root of the Mean Squared Error is about 73.3%, meaning that the decision tree isn't as accurate as the knn regression model but more accurate
+than linear regression.
+```{r}
+#===DECISION TREE===
+library(tree)
+library(MASS)
+set.seed(1234)
+train = sample(1:nrow(small_bike), nrow(small_bike)/2)
+tree.bike = tree(cnt~., small_bike, subset=train)
+summary(tree.bike)
+plot(tree.bike)
+text(tree.bike, pretty=0)
+cv.bike = cv.tree(tree.bike)
+plot(cv.bike$size, cv.bike$dev, type='b')
+prune.bike = prune.tree(tree.bike, best=5)
+plot(prune.bike)
+text(prune.bike, pretty=0)
+yhat = predict(tree.bike, newdata=small_bike[-train,])
+bike.test = small_bike[-train,"cnt"]
+mean((((yhat-bike.test))^2)^0.5)
+```
+
